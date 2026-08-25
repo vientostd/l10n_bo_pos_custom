@@ -9,7 +9,7 @@
 import { patch } from "@web/core/utils/patch";
 import { PosStore } from "@point_of_sale/app/services/pos_store";
 import { OrderReceipt } from "@point_of_sale/app/screens/receipt_screen/receipt/order_receipt";
-import { _t } from "@web/core/l18n/translation";
+import { _t } from "@web/core/l10n/translation";
 
 // ── Patch PosStore: Selector de actividad al abrir POS ────────
 patch(PosStore.prototype, {
