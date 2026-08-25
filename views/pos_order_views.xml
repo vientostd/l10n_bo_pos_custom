@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+
+    <!-- ═══ Vista de órdenes POS con columnas SIN ═══ -->
+    <record id="view_pos_order_tree_sin" model="ir.ui.view">
+        <field name="name">pos.order.tree.sin</field>
+        <field name="model">pos.order</field>
+        <field name="inherit_id" ref="point_of_sale.view_pos_order_tree"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='name']" position="after">
+                <field name="sin_state" optional="show"/>
+                <field name="sin_cuf" optional="hide"/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- ═══ Vista formulario con pestaña SIN ═══ -->
+    <record id="view_pos_order_form_sin" model="ir.ui.view">
+        <field name="name">pos.order.form.sin</field>
+        <field name="model">pos.order</field>
+        <field name="inherit_id" ref="point_of_sale.view_pos_pos_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//group[@name='other_information']" position="before">
+                <group string="Estado SIN" invisible="not sin_state">
+                    <field name="sin_state"/>
+                    <field name="sin_cuf" widget="copy_clipboard"/>
+                    <field name="sin_activity_config_id"/>
+                    <field name="sin_message" colspan="2"/>
+                </group>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

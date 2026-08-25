@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+
+    <!-- ═══ Vista de config POS: agregar actividad SIN ═══ -->
+    <record id="view_pos_config_form_sin" model="ir.ui.view">
+        <field name="name">pos.config.form.sin</field>
+        <field name="model">pos.config</field>
+        <field name="inherit_id" ref="point_of_sale.pos_config_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//notebook" position="inside">
+                <page string="Facturación SIN" name="sin_bolivia">
+                    <div class="row mt16 o_settings_container">
+                        <div class="col-12">
+                            <div class="content-group">
+                                <div class="row mb-2">
+                                    <div class="col-lg-6 o_light_label">
+                                        <label for="sin_activity_config_id"/>
+                                        <field name="sin_activity_config_id"/>
+                                    </div>
+                                    <div class="col-lg-6 o_light_label">
+                                        <label for="sin_enabled"/>
+                                        <field name="sin_enabled" readonly="1"/>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </page>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>
