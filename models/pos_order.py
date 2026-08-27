@@ -6,7 +6,6 @@ from odoo.exceptions import UserError
 _logger = logging.getLogger(__name__)
 class PosOrder(models.Model):
     _inherit = 'pos.order'
-    # ── Campos SIN ──────────────────────────────────────────────
     sin_state = fields.Selection([
         ('draft', 'Borrador'),
         ('sending', 'Enviando al SIN'),
@@ -21,22 +20,13 @@ class PosOrder(models.Model):
     sin_json_response = fields.Text(string='JSON Response SIN', copy=False)
     sin_activity_config_id = fields.Many2one(
         'sin.activity.config', string='Actividad SIN', copy=False)
-    # ── Override: _load_pos_data_fields ─────────────────────────
-    # FIX: Do NOT include sin_activity_config_id in POS data fields.
-    # sin.activity.config is not registered as a POS model, so processModelClasses
-    # fails to resolve the relation, breaking the lines getter and crashing _computeAllPrices.
-    # If activity data is needed in the UI, fetch it via RPC in PosStore.start().
     @api.model
     def _load_pos_data_fields(self, config):
-        fields_list = super()._load_pos_data_fields(config)
-        sin_fields = [
-            'sin_state', 'sin_cuf', 'sin_message',
-        ]
-        for f in sin_fields:
-            if f not in fields_list:
-                fields_list.append(f)
-        return fields_list
-    # ── Override: _generate_pos_order_invoice ───────────────────
+        # CRITICAL: super() returns [] which means "load ALL fields via read()".
+        # If we append to it, read() only returns those specific fields —
+        # breaking lines, partner_id, amount_total, everything.
+        # Instead, exclude sin_activity_config_id from ALL fields.
+        return [f for f in self._fields if f != 'sin_activity_config_id']
     def _generate_pos_order_invoice(self):
         invoice = super()._generate_pos_order_invoice()
         if not invoice:

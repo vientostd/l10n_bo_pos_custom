@@ -1,97 +1,134 @@
 /** @odoo-module */
 /**
- * POS Bolivia SIN — Selector de actividad + receipt SIN integrado.
+ * POS Bolivia SIN — Activity selector + Receipt SIN.
  *
- * Este módulo reemplaza el approach de polling con datos que fluyen
- * naturalmente desde el backend via _load_pos_data_fields.
+ * - LoginScreen: intercepts "Open Register" → shows activity dialog first
+ * - OrderReceipt: shows SIN data (CUF, estado, QR)
  */
 import { patch } from "@web/core/utils/patch";
-import { PosStore } from "@point_of_sale/app/services/pos_store";
+import { LoginScreen } from "@point_of_sale/app/screens/login_screen/login_screen";
 import { OrderReceipt } from "@point_of_sale/app/screens/receipt_screen/receipt/order_receipt";
-import { _t } from "@web/core/l10n/translation";
+import { makeAwaitable } from "@point_of_sale/app/utils/make_awaitable_dialog";
+import { Component, useState } from "@odoo/owl";
+import { useService } from "@web/core/utils/hooks";
+import { Dialog } from "@web/core/dialog/dialog";
 
-// ── Patch PosStore: Selector de actividad al abrir POS ────────
-patch(PosStore.prototype, {
-    async start() {
-        await super.start();
-        // Cargar actividades SIN disponibles
+console.log("[SIN] sin_pos.js loaded");
+
+// ═══════════════════════════════════════════════════════════════
+//  Activity Dialog — OWL Component
+// ═══════════════════════════════════════════════════════════════
+export class SinActivityDialog extends Component {
+    static components = { Dialog };
+    static template = "l10n_bo_pos_custom.SinActivityDialog";
+    setup() {
+        this.orm = useService("orm");
+        this.state = useState({
+            activities: [],
+            loading: true,
+            selectedId: null,
+        });
+        this.loadActivities();
+    }
+    async loadActivities() {
         try {
-            const activities = await this.data.call(
-                "sin.activity.config", "search_read",
-                [[]], { fields: ["id", "name", "actividad_economica", "config_id"] }
+            const activities = await this.orm.call(
+                "sin.activity.config",
+                "pos_search_activities",
+                []
             );
-            this.sin_activities = activities || [];
+            this.state.activities = activities || [];
         } catch (e) {
-            this.sin_activities = [];
-            console.warn("SIN: No se pudieron cargar actividades", e);
+            console.error("[SIN] Error cargando actividades:", e);
+            this.state.activities = [];
         }
-        // Si hay actividades disponibles, pedir selección
-        if (this.sin_activities.length > 0) {
-            await this._selectSinActivity();
+        this.state.loading = false;
+    }
+    selectActivity(act) {
+        this.state.selectedId = act.id;
+    }
+    onConfirm() {
+        const selected = this.state.activities.find(
+            (a) => a.id === this.state.selectedId
+        );
+        this.props.getPayload(selected);
+        this.props.close();
+    }
+    onCancel() {
+        this.props.getPayload(null);
+        this.props.close();
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  Patch LoginScreen — Activity dialog before entering POS
+// ═══════════════════════════════════════════════════════════════
+patch(LoginScreen.prototype, {
+    async openRegister() {
+        const pos = this.env.services.pos;
+        const config = pos.config;
+        if (!config.sin_enabled) {
+            return super.openRegister();
         }
-    },
-    async _selectSinActivity() {
-        const activities = this.sin_activities;
-        if (!activities || activities.length === 0) return;
-        if (activities.length === 1) {
-            // Una sola actividad: seleccionar automáticamente
-            this.selectedSinActivity = activities[0];
+        const result = await makeAwaitable(
+            this.env.services.dialog,
+            SinActivityDialog,
+            {}
+        );
+        if (!result) {
             return;
         }
-        // Múltiples actividades: mostrar popup
-        return new Promise((resolve) => {
-            this.dialog.add(SinActivityDialog, {
-                activities: activities,
-                title: _t("Seleccionar Actividad SIN"),
-                confirm: (activity) => {
-                    this.selectedSinActivity = activity;
-                    resolve();
-                },
-                cancel: () => {
-                    // Seleccionar la primera por defecto
-                    this.selectedSinActivity = activities[0];
-                    resolve();
-                },
-            });
-        });
-    },
-    async getSinReceiptData(order) {
-        if (!order || !order.id) return {};
-        try {
-            return await this.data.call("pos.order", "get_sin_receipt_data", [[order.id]]);
-        } catch (e) {
-            console.warn("SIN: Error getting receipt data", e);
-            return {};
-        }
+        pos.selectedSinActivity = result;
+        return super.openRegister();
     },
 });
-// ── Patch OrderReceipt: Mostrar datos SIN en el receipt ───────
+
+// ═══════════════════════════════════════════════════════════════
+//  Patch PosStore — Set activity on new orders
+// ═══════════════════════════════════════════════════════════════
+import { PosStore } from "@point_of_sale/app/services/pos_store";
+
+patch(PosStore.prototype, {
+    createNewOrder(data = {}) {
+        const order = super.createNewOrder(data);
+        if (this.selectedSinActivity && order) {
+            try {
+                order.sin_activity_config_id = this.selectedSinActivity.id;
+            } catch (e) {
+                console.warn("[SIN] Could not set activity on order:", e);
+            }
+        }
+        return order;
+    },
+});
+
+// ═══════════════════════════════════════════════════════════════
+//  Patch OrderReceipt — Show SIN data on receipt
+// ═══════════════════════════════════════════════════════════════
 patch(OrderReceipt.prototype, {
     get sinData() {
         const order = this.props.order;
         if (!order) return null;
-        // Acceder directamente a los campos del modelo pos.order
-        // que llegan via _load_pos_data_fields
         const sinState = order.sin_state;
         const sinCuf = order.sin_cuf;
         const sinMessage = order.sin_message;
-        if (!sinState || sinState === 'draft' || sinState === 'not_sent') {
+        if (!sinState || sinState === "draft" || sinState === "not_sent") {
             return null;
         }
         return {
             state: sinState,
             stateLabel: this._getSinStateLabel(sinState),
-            cuf: sinCuf || '',
-            message: sinMessage || '',
+            cuf: sinCuf || "",
+            message: sinMessage || "",
             hasCuf: !!sinCuf,
         };
     },
     _getSinStateLabel(state) {
         const labels = {
-            'sending': 'Procesando...',
-            'sent': 'Enviado al SIN',
-            'validated': 'Validado por SIN',
-            'error': 'Error SIN',
+            sending: "Procesando...",
+            sent: "Enviado al SIN",
+            validated: "Validado por SIN",
+            error: "Error SIN",
         };
         return labels[state] || state;
     },
@@ -99,43 +136,6 @@ patch(OrderReceipt.prototype, {
         const data = this.sinData;
         if (!data || !data.hasCuf) return null;
         const baseUrl = this.order.config._base_url;
-        // QR con CUF para verificación
         return `${baseUrl}/sin/validate?cuf=${data.cuf}`;
     },
 });
-// ── Component: Popup de selección de actividad ────────────────
-import { Component } from "@odoo/owl";
-import { Dialog } from "@web/core/dialog/dialog";
-export class SinActivityDialog extends Component {
-    static template = "l10n_bo_pos_custom.SinActivityDialog";
-    static components = { Dialog };
-    static props = {
-        activities: Array,
-        title: String,
-        confirm: Function,
-        cancel: Function,
-    };
-    setup() {
-        this.state = {
-            selectedId: this.props.activities.length === 1
-                ? this.props.activities[0].id
-                : null,
-        };
-    }
-    selectActivity(activity) {
-        this.state.selectedId = activity.id;
-    }
-    onConfirm() {
-        const activity = this.props.activities.find(
-            (a) => a.id === this.state.selectedId
-        );
-        if (activity) {
-            this.props.confirm(activity);
-            this.props.close();
-        }
-    }
-    onCancel() {
-        this.props.cancel();
-        this.props.close();
-    }
-}

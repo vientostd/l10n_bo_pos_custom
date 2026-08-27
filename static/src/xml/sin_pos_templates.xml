@@ -8,8 +8,15 @@
                 <p class="text-muted mb-3">
                     Seleccione la actividad económica para esta sesión del POS:
                 </p>
-                <div class="d-flex flex-column gap-2">
-                    <t t-foreach="props.activities" t-as="act" t-key="act.id">
+                <div t-if="state.loading" class="text-center py-3">
+                    <i class="fa fa-spinner fa-spin fa-2x"/>
+                    <div class="mt-2">Cargando actividades...</div>
+                </div>
+                <div t-elif="state.activities.length === 0" class="text-center py-3 text-danger">
+                    No se encontraron actividades disponibles.
+                </div>
+                <div t-else="" class="d-flex flex-column gap-2">
+                    <t t-foreach="state.activities" t-as="act" t-key="act.id">
                         <button
                             class="btn btn-outline-primary text-start p-3"
                             t-att-class="{'active btn-primary': state.selectedId === act.id}"
