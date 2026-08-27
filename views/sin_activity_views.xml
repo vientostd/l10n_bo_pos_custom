@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <record id="view_sin_activity_config_form" model="ir.ui.view">
+        <field name="name">sin.activity.config.form</field>
+        <field name="model">sin.activity.config</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="name"/>
+                            <field name="alias" placeholder="Ej: DTF, Papeleria"/>
+                            <field name="actividad_economica"/>
+                            <field name="codigo_sistema"/>
+                        </group>
+                        <group>
+                            <field name="config_id"/>
+                            <field name="document_sector_code"/>
+                            <field name="solicitud_number"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+</odoo>

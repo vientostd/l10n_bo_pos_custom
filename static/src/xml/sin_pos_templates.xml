@@ -1,12 +1,29 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <templates xml:space="preserve">
 
-    <!-- ═══ Dialog de selección de actividad SIN ═══ -->
+    <!-- ═══ Activity badge in Navbar header ═══ -->
+    <t t-name="l10n_bo_pos_custom.SinNavbarBadge"
+       t-inherit="point_of_sale.Navbar"
+       t-inherit-mode="extension">
+        <xpath expr="//div[contains(@class, 'status-buttons')]" position="before">
+            <t t-if="pos.selectedSinActivity and pos.config.sin_enabled">
+                <div class="sin-activity-badge d-flex align-items-center gap-1 px-2 py-1 rounded"
+                     style="cursor: pointer; background: #e8f4f8; border: 1px solid #b8d4e3; font-size: 0.85em; color: #2a6496;"
+                     t-on-click="() => this.switchSinActivity()"
+                     title="Cambiar actividad economica">
+                    <i class="fa fa-briefcase"/>
+                    <span class="fw-bold" t-esc="sinActivityAlias"/>
+                </div>
+            </t>
+        </xpath>
+    </t>
+
+    <!-- ═══ Dialog de seleccion de actividad SIN ═══ -->
     <t t-name="l10n_bo_pos_custom.SinActivityDialog">
-        <Dialog title="props.title" size="'md'" contentClass="'pos-dialog'" footer="true">
+        <Dialog title="props.title || 'Actividad Economica'" size="'md'" contentClass="'pos-dialog'" footer="true">
             <div class="sin-activity-dialog p-3">
                 <p class="text-muted mb-3">
-                    Seleccione la actividad económica para esta sesión del POS:
+                    Seleccione la actividad economica para esta sesion del POS:
                 </p>
                 <div t-if="state.loading" class="text-center py-3">
                     <i class="fa fa-spinner fa-spin fa-2x"/>
@@ -21,9 +38,18 @@
                             class="btn btn-outline-primary text-start p-3"
                             t-att-class="{'active btn-primary': state.selectedId === act.id}"
                             t-on-click="() => this.selectActivity(act)">
-                            <div class="fw-bold" t-esc="act.name"/>
-                            <div class="text-muted small">
-                                Actividad: <span t-esc="act.actividad_economica"/>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <div class="fw-bold" t-esc="act.name"/>
+                                    <div class="text-muted small">
+                                        Actividad: <span t-esc="act.actividad_economica"/>
+                                    </div>
+                                </div>
+                                <t t-if="act.alias">
+                                    <span class="badge bg-info text-white ms-2"
+                                          style="font-size: 0.8em;"
+                                          t-esc="act.alias"/>
+                                </t>
                             </div>
                         </button>
                     </t>
@@ -42,7 +68,7 @@
         </Dialog>
     </t>
 
-    <!-- ═══ Sección SIN en el receipt ═══ -->
+    <!-- ═══ Seccion SIN en el receipt ═══ -->
     <t t-name="l10n_bo_pos_custom.OrderReceipt.sin" t-inherit="point_of_sale.OrderReceipt" t-inherit-mode="extension">
         <xpath expr="//div[@class='before-footer']" position="before">
             <t t-if="sinData">

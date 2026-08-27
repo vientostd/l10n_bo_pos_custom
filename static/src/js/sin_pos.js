@@ -3,11 +3,13 @@
  * POS Bolivia SIN — Activity selector + Receipt SIN.
  *
  * - LoginScreen: intercepts "Open Register" → shows activity dialog first
+ * - Navbar: shows activity badge (alias) in top-right header
  * - OrderReceipt: shows SIN data (CUF, estado, QR)
  */
 import { patch } from "@web/core/utils/patch";
 import { LoginScreen } from "@point_of_sale/app/screens/login_screen/login_screen";
 import { OrderReceipt } from "@point_of_sale/app/screens/receipt_screen/receipt/order_receipt";
+import { Navbar } from "@point_of_sale/app/components/navbar/navbar";
 import { makeAwaitable } from "@point_of_sale/app/utils/make_awaitable_dialog";
 import { Component, useState } from "@odoo/owl";
 import { useService } from "@web/core/utils/hooks";
@@ -80,6 +82,32 @@ patch(LoginScreen.prototype, {
         }
         pos.selectedSinActivity = result;
         return super.openRegister();
+    },
+});
+
+// ═══════════════════════════════════════════════════════════════
+//  Patch Navbar — Activity badge + switch activity
+// ═══════════════════════════════════════════════════════════════
+patch(Navbar.prototype, {
+    get sinActivityAlias() {
+        const act = this.pos.selectedSinActivity;
+        if (!act) return null;
+        return act.alias || act.name || null;
+    },
+    get sinActivityName() {
+        const act = this.pos.selectedSinActivity;
+        if (!act) return null;
+        return act.name || null;
+    },
+    async switchSinActivity() {
+        const result = await makeAwaitable(
+            this.dialog,
+            SinActivityDialog,
+            {}
+        );
+        if (result) {
+            this.pos.selectedSinActivity = result;
+        }
     },
 });
 

@@ -1,14 +1,15 @@
 {
     'name': 'POS Bolivia SIN - Punto de Venta Personalizado',
-    'version': '1.0.0',
+    'version': '1.0.1',
     'category': 'Point of Sale',
-    'summary': 'Punto de venta con facturación SIN integrada de forma nativa',
+    'summary': 'Punto de venta con facturacion SIN integrada de forma nativa',
     'author': 'Desarrollo propio',
     'depends': ['point_of_sale', 'l10n_bo_electronic_invoice'],
     'data': [
         'security/ir.model.access.csv',
         'views/pos_config_views.xml',
         'views/pos_order_views.xml',
+        'views/sin_activity_views.xml',
         'data/pos_data.xml',
     ],
     'assets': {
