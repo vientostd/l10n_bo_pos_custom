@@ -8,7 +8,6 @@
  */
 import { patch } from "@web/core/utils/patch";
 import { LoginScreen } from "@point_of_sale/app/screens/login_screen/login_screen";
-import { OrderReceipt } from "@point_of_sale/app/screens/receipt_screen/receipt/order_receipt";
 import { Navbar } from "@point_of_sale/app/components/navbar/navbar";
 import { makeAwaitable } from "@point_of_sale/app/utils/make_awaitable_dialog";
 import { Component, useState } from "@odoo/owl";
@@ -80,7 +79,7 @@ patch(LoginScreen.prototype, {
         if (!result) {
             return;
         }
-        pos.selectedSinActivity = result;
+        pos._setSinActivity(result);
         return super.openRegister();
     },
 });
@@ -106,7 +105,7 @@ patch(Navbar.prototype, {
             {}
         );
         if (result) {
-            this.pos.selectedSinActivity = result;
+            this.pos._setSinActivity(result);
         }
     },
 });
@@ -117,53 +116,59 @@ patch(Navbar.prototype, {
 import { PosStore } from "@point_of_sale/app/services/pos_store";
 
 patch(PosStore.prototype, {
+    async setup(...args) {
+        // Inicializar de forma reactiva ANTES del primer render del Navbar.
+        // selectedSinActivity (objeto) alimenta el badge; selectedActivityConfigId
+        // (int) alimenta el boton "Facturar SIN" del modulo l10n_bo_electronic_invoice.
+        // Se declara desde el inicio para que OWL rastree los cambios y el badge
+        // no desaparezca al cerrar el dialogo de apertura de caja.
+        if (!("selectedSinActivity" in this)) {
+            this.selectedSinActivity = null;
+        }
+        if (!("selectedActivityConfigId" in this)) {
+            this.selectedActivityConfigId = null;
+        }
+        return super.setup(...args);
+    },
     createNewOrder(data = {}) {
         const order = super.createNewOrder(data);
-        if (this.selectedSinActivity && order) {
+        const act = this.selectedSinActivity;
+        if (act && order) {
             try {
-                order.sin_activity_config_id = this.selectedSinActivity.id;
+                order.sin_activity_config_id = act.id;
             } catch (e) {
                 console.warn("[SIN] Could not set activity on order:", e);
             }
         }
         return order;
     },
+    // Mantener sincronizado el id usado por el boton "Facturar SIN"
+    _setSinActivity(act) {
+        this.selectedSinActivity = act || null;
+        this.selectedActivityConfigId = act ? act.id : null;
+    },
+    // Suprimir el selector original de l10n_bo_electronic_invoice cuando
+    // nuestro sistema con aliases esta activo. El modulo SIN muestra un
+    // SelectionPopup automaticamente en start(); si no lo suprimimos, el
+    // usuario veeria DOS selectores de actividad. Nuestro dialogo (con alias)
+    // ya setea selectedActivityConfigId, asi que el envio SIN funciona igual.
+    async _selectSinActivity() {
+        if (this.config && this.config.sin_enabled) {
+            // Nuestro dialogo (LoginScreen.openRegister) maneja la seleccion.
+            // Dejar selectedActivityConfigId en null para que se setee desde
+            // _setSinActivity al confirmar.
+            this.selectedActivityConfigId = null;
+            return;
+        }
+        // Si sin_enabled esta desactivado, dejar el comportamiento original.
+        return super._selectSinActivity(...arguments);
+    },
 });
 
 // ═══════════════════════════════════════════════════════════════
-//  Patch OrderReceipt — Show SIN data on receipt
+//  Patch OrderReceipt — SIN data
+//  (ELIMINADO: el modulo l10n_bo_electronic_invoice ya maneja el
+//   receipt SIN completo (QR, leyenda, polling, hoja carta). Nuestro
+//   getter sinData competia por el mismo nombre y podia romper el
+//   receipt. Nuestro unico aporte es el badge de alias + selector.)
 // ═══════════════════════════════════════════════════════════════
-patch(OrderReceipt.prototype, {
-    get sinData() {
-        const order = this.props.order;
-        if (!order) return null;
-        const sinState = order.sin_state;
-        const sinCuf = order.sin_cuf;
-        const sinMessage = order.sin_message;
-        if (!sinState || sinState === "draft" || sinState === "not_sent") {
-            return null;
-        }
-        return {
-            state: sinState,
-            stateLabel: this._getSinStateLabel(sinState),
-            cuf: sinCuf || "",
-            message: sinMessage || "",
-            hasCuf: !!sinCuf,
-        };
-    },
-    _getSinStateLabel(state) {
-        const labels = {
-            sending: "Procesando...",
-            sent: "Enviado al SIN",
-            validated: "Validado por SIN",
-            error: "Error SIN",
-        };
-        return labels[state] || state;
-    },
-    get sinQrUrl() {
-        const data = this.sinData;
-        if (!data || !data.hasCuf) return null;
-        const baseUrl = this.order.config._base_url;
-        return `${baseUrl}/sin/validate?cuf=${data.cuf}`;
-    },
-});
