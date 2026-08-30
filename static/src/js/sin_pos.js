@@ -24,6 +24,7 @@ export class SinActivityDialog extends Component {
     static template = "l10n_bo_pos_custom.SinActivityDialog";
     setup() {
         this.orm = useService("orm");
+        this.pos = useService("pos");
         this.state = useState({
             activities: [],
             loading: true,
@@ -33,12 +34,15 @@ export class SinActivityDialog extends Component {
     }
     async loadActivities() {
         try {
-            const activities = await this.orm.call(
+            const posConfigId = this.pos?.config?.id || null;
+            const payload = await this.orm.call(
                 "sin.activity.config",
-                "pos_search_activities",
-                []
+                "pos_get_activities_with_default",
+                [posConfigId]
             );
-            this.state.activities = activities || [];
+            this.state.activities = (payload && payload.activities) || [];
+            // Preseleccionar la actividad por defecto del punto de venta.
+            this.state.selectedId = (payload && payload.default_id) || null;
         } catch (e) {
             console.error("[SIN] Error cargando actividades:", e);
             this.state.activities = [];
@@ -66,13 +70,14 @@ export class SinActivityDialog extends Component {
 // ═══════════════════════════════════════════════════════════════
 patch(LoginScreen.prototype, {
     async openRegister() {
-        const pos = this.env.services.pos;
+        // En Odoo 19 el POS se obtiene con usePos() en setup() -> this.pos
+        const pos = this.pos;
         const config = pos.config;
         if (!config.sin_enabled) {
             return super.openRegister();
         }
         const result = await makeAwaitable(
-            this.env.services.dialog,
+            this.dialog,
             SinActivityDialog,
             {}
         );
@@ -97,6 +102,21 @@ patch(Navbar.prototype, {
         const act = this.pos.selectedSinActivity;
         if (!act) return null;
         return act.name || null;
+    },
+    get sinActivityCodigo() {
+        const act = this.pos.selectedSinActivity;
+        if (!act) return null;
+        return act.actividad_economica || null;
+    },
+    // Etiqueta descriptiva: "Alias — Código" (p.ej. "DTF · 1811000"), que
+    // indica claramente en qué actividad económica se está facturando.
+    get sinActivityLabel() {
+        const act = this.pos.selectedSinActivity;
+        if (!act) return null;
+        const short = act.alias || act.name || '';
+        const code = act.actividad_economica || '';
+        if (short && code) return `${short} · ${code}`;
+        return short || code || null;
     },
     async switchSinActivity() {
         const result = await makeAwaitable(

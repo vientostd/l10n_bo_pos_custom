@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Corrige el botón "Reintentar" de la Cola Offline: el módulo base usaba
+         column_invisible (que en list view se evalúa contra el contexto global
+         de la vista, sin los valores por fila → 'state' no está definido y rompe
+         la vista). Se cambia por invisible, que sí se evalúa por fila y oculta el
+         botón cuando el registro ya fue enviado ('sent') o está enviándose ('sending'). -->
+    <record id="view_sin_offline_queue_tree_fix" model="ir.ui.view">
+        <field name="name">sin.offline.queue.list.fix</field>
+        <field name="model">sin.offline.queue</field>
+        <field name="inherit_id" ref="l10n_bo_electronic_invoice.sin_offline_queue_view_tree"/>
+        <field name="arch" type="xml">
+            <button name="action_retry_now" position="attributes">
+                <attribute name="column_invisible"/>
+                <attribute name="invisible">state in ('sent', 'sending')</attribute>
+            </button>
+        </field>
+    </record>
+</odoo>

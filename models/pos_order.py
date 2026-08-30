@@ -28,19 +28,16 @@ class PosOrder(models.Model):
         # Instead, exclude sin_activity_config_id from ALL fields.
         return [f for f in self._fields if f != 'sin_activity_config_id']
     def _generate_pos_order_invoice(self):
+        # El envío al SIN lo realiza super() (módulo l10n_bo_electronic_invoice),
+        # que ya dispara su propio thread async cuando _is_sin_enabled() es True.
+        # NO volvemos a disparar otro thread aquí: antes provocaba un doble envío
+        # y un error "Move does not exist" en nuestro thread (que arrancaba antes
+        # de que la factura existiera/persistiera en su cursor).
         invoice = super()._generate_pos_order_invoice()
         if not invoice:
             return invoice
         if not self._is_sin_enabled():
             return invoice
-        try:
-            self._send_to_sin_async(invoice)
-        except Exception:
-            _logger.exception('POS-SIN: Error launching async send for order %s', self.id)
-            self.write({
-                'sin_state': 'error',
-                'sin_message': str(_.je('Error', 'No se pudo iniciar el envío al SIN')),
-            })
         return invoice
     def _is_sin_enabled(self):
         self.ensure_one()
@@ -142,11 +139,20 @@ class PosOrder(models.Model):
             vals['sin_activity_config_id'] = self.sin_activity_config_id.id
         return vals
     def get_sin_receipt_data(self):
-        self.ensure_one()
-        return {
-            'sin_state': self.sin_state or 'draft',
-            'sin_cuf': self.sin_cuf or '',
-            'sin_message': self.sin_message or '',
-            'sin_activity': self.sin_activity_config_id.name if self.sin_activity_config_id else '',
-            'sin_activity_code': self.sin_activity_config_id.actividad_economica if self.sin_activity_config_id else '',
-        }
+        # Super() (modulo l10n_bo_electronic_invoice) construye el diccionario
+        # COMPLETO que el receipt del POS espera (cuf, cufd, qr_image, lines,
+        # razon_social, nit_emisor, move_id, invoice_number, totales...).
+        # Antes reemplazabamos ese dict por uno reducido sin llamar a super(),
+        # por lo que el receipt no mostraba la factura ("sin generar la
+        # factura" vista desde el POS) aunque la factura si existiera en el
+        # backend. Ahora mantenemos el dict completo y SOLO anadimos nuestras
+        # claves adicionales de actividad.
+        data = super().get_sin_receipt_data()
+        if not isinstance(data, dict):
+            data = {}
+        data['sin_state'] = self.sin_state or 'draft'
+        data['sin_cuf'] = self.sin_cuf or ''
+        data['sin_message'] = self.sin_message or ''
+        data['sin_activity'] = self.sin_activity_config_id.name if self.sin_activity_config_id else ''
+        data['sin_activity_code'] = self.sin_activity_config_id.actividad_economica if self.sin_activity_config_id else ''
+        return data

@@ -10,6 +10,9 @@
         'views/pos_config_views.xml',
         'views/pos_order_views.xml',
         'views/sin_activity_views.xml',
+        'views/sin_config_views.xml',
+        'views/sin_offline_queue_views.xml',
+        'views/res_company_views.xml',
         'data/pos_data.xml',
     ],
     'assets': {

@@ -10,9 +10,14 @@
                 <div class="sin-activity-badge d-flex align-items-center gap-1 px-2 py-1 rounded"
                      style="cursor: pointer; background: #e8f4f8; border: 1px solid #b8d4e3; font-size: 0.85em; color: #2a6496;"
                      t-on-click="() => this.switchSinActivity()"
-                     title="Cambiar actividad economica">
+                     title="Actividad económica: cambiar">
                     <i class="fa fa-briefcase"/>
-                    <span class="fw-bold" t-esc="sinActivityAlias"/>
+                    <span class="fw-bold" t-esc="sinActivityAlias || sinActivityName"/>
+                    <span class="badge bg-light text-dark border ms-1"
+                          style="font-size: 0.85em;"
+                          t-esc="sinActivityCodigo || ''"/>
+                    <span class="d-none d-xl-inline small text-muted"
+                          t-esc="sinActivityName || ''"/>
                 </div>
             </t>
         </xpath>

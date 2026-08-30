@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ═══ Página "Facturación SIN" en la ficha de Empresa ═══ -->
+    <record id="view_res_company_form_sin" model="ir.ui.view">
+        <field name="name">res.company.form.sin</field>
+        <field name="model">res.company</field>
+        <field name="inherit_id" ref="base.view_company_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//notebook" position="inside">
+                <page string="Facturación SIN" name="sin_bolivia">
+                    <group>
+                        <group string="Configuración SIN">
+                            <field name="sin_config_id" string="Config. SIN"/>
+                        </group>
+                        <group string="Acciones">
+                            <button name="open_sin_config" type="object"
+                                    string="Abrir Configuración SIN"
+                                    class="btn-link" icon="fa-cogs"
+                                    help="Abrir la ficha de la configuración SIN de esta compañía para editar tokens, CUIS, catálogos, etc."/>
+                        </group>
+                    </group>
+                </page>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

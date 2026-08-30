@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_sin_config_form_sin_select" model="ir.ui.view">
+        <field name="name">sin.config.form.select.activity</field>
+        <field name="model">sin.config</field>
+        <field name="inherit_id" ref="l10n_bo_electronic_invoice.view_sin_config_form"/>
+        <field name="arch" type="xml">
+            <field name="actividad_economica" position="replace">
+                <field name="sin_activity_id"
+                       options="{'no_create': True}"
+                       placeholder="Seleccione la actividad económica"/>
+            </field>
+        </field>
+    </record>
+</odoo>
