@@ -1,6 +1,6 @@
 {
     'name': 'POS Bolivia SIN - Punto de Venta Personalizado',
-    'version': '1.0.1',
+    'version': '1.0.2',
     'category': 'Point of Sale',
     'summary': 'Punto de venta con facturacion SIN integrada de forma nativa',
     'author': 'Desarrollo propio',
@@ -14,6 +14,7 @@
         'views/sin_offline_queue_views.xml',
         'views/res_company_views.xml',
         'data/pos_data.xml',
+        'data/sin_pos_cron.xml',
     ],
     'assets': {
         'point_of_sale._assets_pos': [
@@ -21,6 +22,7 @@
             'l10n_bo_pos_custom/static/src/xml/sin_pos_templates.xml',
         ],
     },
+    'post_init_hook': 'post_init_hook',
     'installable': True,
     'application': False,
     'auto_install': False,

@@ -10,6 +10,16 @@
                        options="{'no_create': True}"
                        placeholder="Seleccione la actividad económica"/>
             </field>
+            <xpath expr="//field[@name='activity_catalog_ids']" position="after">
+                <button name="action_ensure_activity_configs"
+                        type="object"
+                        class="btn-link"
+                        icon="fa-refresh"
+                        string="Asegurar actividades POS"
+                        help="Crea (si faltan) las configuraciones POS de las
+                              actividades autorizadas por el SIN. No modifica
+                              las existentes."/>
+            </xpath>
         </field>
     </record>
 </odoo>
