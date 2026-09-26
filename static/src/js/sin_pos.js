@@ -192,3 +192,116 @@ patch(PosStore.prototype, {
 //   getter sinData competia por el mismo nombre y podia romper el
 //   receipt. Nuestro unico aporte es el badge de alias + selector.)
 // ═══════════════════════════════════════════════════════════════
+
+/**
+ * ============================================================
+ *  DESCUENTO GENERAL SIN (2026-09-21) - fix parseFloat
+ *  Botón "Descuento General" en la pantalla de productos +
+ *  diálogo % / Bs. Distribuye el descuento como % por línea
+ *  (line.setDiscount), que llega a la factura -> line.discount
+ *  -> montoDescuento por detalle en el XML SIN (fix sin_xml.py).
+ * ============================================================
+ */
+import { _t } from "@web/core/l10n/translation";
+import { formatCurrency } from "@web/core/currency";
+import { ProductScreen } from "@point_of_sale/app/screens/product_screen/product_screen";
+
+export class SinGlobalDiscountDialog extends Component {
+    static components = { Dialog };
+    static template = "l10n_bo_pos_custom.SinGlobalDiscountDialog";
+    setup() {
+        this.pos = useService("pos");
+        this.state = useState({
+            mode: "percent", // 'percent' | 'amount'
+            value: "10",
+        });
+    }
+    get order() {
+        return this.pos.getOrder();
+    }
+    get currentTotal() {
+        return this.order ? formatCurrency(this.order.priceIncl, this.order.currency.id) : "";
+    }
+    get canApply() {
+        const value = parseFloat(this.state.value);
+        return !isNaN(value) && value > 0;
+    }
+    _eligibleLines(order) {
+        return order.getOrderlines().filter(
+            (l) => l.getQuantity() !== 0 && !l.isPartOfCombo() && !l.isTipLine()
+        );
+    }
+    get estimatedTotal() {
+        const order = this.order;
+        if (!order) return "";
+        const value = parseFloat(this.state.value);
+        if (isNaN(value) || value <= 0) {
+            return this.currentTotal;
+        }
+        const lines = this._eligibleLines(order);
+        if (!lines.length) return this.currentTotal;
+        const gross = lines.reduce(
+            (sum, line) => sum + Math.abs(line.price_unit * line.getQuantity()), 0
+        );
+        if (!gross) return this.currentTotal;
+        const pct =
+            this.state.mode === "percent"
+                ? Math.min(Math.max(value, 0), 100)
+                : Math.min((value / gross) * 100, 100);
+        return formatCurrency(order.currency.round(gross * (1 - pct / 100)), order.currency.id);
+    }
+    onMode(mode) {
+        this.state.mode = mode;
+    }
+    onConfirm() {
+        const value = parseFloat(this.state.value);
+        if (isNaN(value) || value < 0) return;
+        this.props.getPayload({ mode: this.state.mode, value });
+        this.props.close();
+    }
+    onClear() {
+        // Quitar el descuento general: 0 % en todas las líneas.
+        this.props.getPayload({ mode: "percent", value: 0 });
+        this.props.close();
+    }
+    onCancel() {
+        this.props.getPayload(null);
+        this.props.close();
+    }
+}
+
+patch(ProductScreen.prototype, {
+    async openGlobalDiscountDialog() {
+        const order = this.pos.getOrder();
+        if (!order || order.isEmpty()) return;
+        if (order.isRefund) {
+            this.notification.add(
+                _t("El descuento general no se aplica a devoluciones."),
+                2500
+            );
+            return;
+        }
+        const result = await makeAwaitable(this.dialog, SinGlobalDiscountDialog, {});
+        if (!result) return;
+        const lines = this._sinEligibleLines(order);
+        if (!lines.length) return;
+        if (result.mode === "percent") {
+            const pct = Math.min(Math.max(result.value || 0, 0), 100);
+            lines.forEach((line) => line.setDiscount(pct));
+        } else {
+            const amount = Math.max(result.value || 0, 0);
+            const totalGross = lines.reduce(
+                (sum, line) => sum + Math.abs(line.price_unit * line.getQuantity()), 0
+            );
+            if (!totalGross) return;
+            const pct = Math.min((amount / totalGross) * 100, 100);
+            lines.forEach((line) => line.setDiscount(pct));
+        }
+        this.notification.add(_t("Descuento general aplicado."), 1500);
+    },
+    _sinEligibleLines(order) {
+        return order.getOrderlines().filter(
+            (l) => l.getQuantity() !== 0 && !l.isPartOfCombo() && !l.isTipLine()
+        );
+    },
+});

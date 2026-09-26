@@ -1,6 +1,6 @@
 {
     'name': 'POS Bolivia SIN - Punto de Venta Personalizado',
-    'version': '1.0.2',
+    'version': '1.0.3',
     'category': 'Point of Sale',
     'summary': 'Punto de venta con facturacion SIN integrada de forma nativa',
     'author': 'Desarrollo propio',
