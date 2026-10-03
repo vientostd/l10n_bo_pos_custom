@@ -33,7 +33,16 @@ class PosOrder(models.Model):
         # NO volvemos a disparar otro thread aquí: antes provocaba un doble envío
         # y un error "Move does not exist" en nuestro thread (que arrancaba antes
         # de que la factura existiera/persistiera en su cursor).
-        invoice = super()._generate_pos_order_invoice()
+        # PERF (auditoría): el core, por defecto, ejecuta
+        # invoice._generate_and_send() de forma SINCRONA dentro del checkout:
+        # renderiza el PDF con wkhtmltopdf (~13-14 s medidos con cProfile) y lo
+        # adjunta/envía. En el flujo POS+SIN es redundante: el módulo electrónico
+        # envía su propia representación gráfica fiscal en un thread async
+        # (_auto_send_sin -> _send_sin_email_to_buyer). Desactivamos aquí la
+        # generación/envío sincrono del PDF con generate_pdf=False; el POS sigue
+        # pudiendo descargar la factura bajo demanda y el botón "Enviar e
+        # imprimir" del backend NO se ve afectado (solo este contexto del POS).
+        invoice = super(PosOrder, self.with_context(generate_pdf=False))._generate_pos_order_invoice()
         if not invoice:
             return invoice
         if not self._is_sin_enabled():
