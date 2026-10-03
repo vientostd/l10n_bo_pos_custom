@@ -11,7 +11,13 @@ class PosConfig(models.Model):
     sin_enabled = fields.Boolean(
         string='SIN Habilitado',
         compute='_compute_sin_enabled',
-        store=True,
+        # FIX M4: NO stored. El compute depende de ir.config_parameter
+        # ('sin.automatic_mode'), que no es un campo y por tanto no puede
+        # declararse en @api.depends: con store=True el valor quedaba
+        # desincronizado al cambiar el modo automatico. Al calcularse en
+        # lectura siempre refleja el parametro actual. Es seguro porque este
+        # campo no se usa en dominios de busqueda (solo lectura en el POS).
+        store=False,
     )
     @api.depends('sin_activity_config_id')
     def _compute_sin_enabled(self):
