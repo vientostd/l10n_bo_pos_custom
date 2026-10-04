@@ -14,8 +14,6 @@ import { Component, useState } from "@odoo/owl";
 import { useService } from "@web/core/utils/hooks";
 import { Dialog } from "@web/core/dialog/dialog";
 
-console.log("[SIN] sin_pos.js loaded");
-
 // ═══════════════════════════════════════════════════════════════
 //  Activity Dialog — OWL Component
 // ═══════════════════════════════════════════════════════════════
