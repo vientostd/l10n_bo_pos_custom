@@ -222,7 +222,9 @@ export class SinGlobalDiscountDialog extends Component {
     }
     get canApply() {
         const value = parseFloat(this.state.value);
-        return !isNaN(value) && value > 0;
+        if (isNaN(value) || value <= 0) return false;
+        // Bloqueo 2: tope 30% (nunca 100%) en modo porcentaje.
+        return this.state.mode === "amount" || value <= 30;
     }
     _eligibleLines(order) {
         return order.getOrderlines().filter(
@@ -244,8 +246,8 @@ export class SinGlobalDiscountDialog extends Component {
         if (!gross) return this.currentTotal;
         const pct =
             this.state.mode === "percent"
-                ? Math.min(Math.max(value, 0), 100)
-                : Math.min((value / gross) * 100, 100);
+                ? Math.min(Math.max(value, 0), 30)
+                : Math.min((value / gross) * 100, 30);
         return formatCurrency(order.currency.round(gross * (1 - pct / 100)), order.currency.id);
     }
     onMode(mode) {
@@ -284,7 +286,7 @@ patch(ProductScreen.prototype, {
         const lines = this._sinEligibleLines(order);
         if (!lines.length) return;
         if (result.mode === "percent") {
-            const pct = Math.min(Math.max(result.value || 0, 0), 100);
+            const pct = Math.min(Math.max(result.value || 0, 0), 30);
             lines.forEach((line) => line.setDiscount(pct));
         } else {
             const amount = Math.max(result.value || 0, 0);
@@ -292,7 +294,7 @@ patch(ProductScreen.prototype, {
                 (sum, line) => sum + Math.abs(line.price_unit * line.getQuantity()), 0
             );
             if (!totalGross) return;
-            const pct = Math.min((amount / totalGross) * 100, 100);
+            const pct = Math.min((amount / totalGross) * 100, 30);
             lines.forEach((line) => line.setDiscount(pct));
         }
         this.notification.add(_t("Descuento general aplicado."), 1500);
